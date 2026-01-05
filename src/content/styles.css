@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+	--font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+/* Custom pulse animation for warning state */
+@keyframes pulse-opacity {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0.6;
+	}
+}
+
+.animate-pulse-opacity {
+	animation: pulse-opacity 0.5s ease-in-out infinite alternate;
+}
+
+/* Mount point positioning */
+#pishock-overlay-root {
+	position: absolute;
+	top: 0;
+	right: 0;
+	pointer-events: none;
+}
+
+#pishock-overlay-root > div {
+	pointer-events: auto;
+}
