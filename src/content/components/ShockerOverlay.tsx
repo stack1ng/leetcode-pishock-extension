@@ -108,6 +108,12 @@ export default function ShockerOverlay() {
 					</div>
 				</div>
 			</div>
+			<div>
+				<span className="text-xs">Duration:</span>
+				<div className="flex items-center gap-2 text-lg">
+					<span className="shrink-0">{duration}s</span>
+				</div>
+			</div>
 		</div>
 	);
 }
