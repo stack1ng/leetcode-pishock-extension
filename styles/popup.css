@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--radius: 0.625rem;
+}
+
+/* Custom animations */
+@keyframes gradient-shift {
+	0%,
+	100% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+}
+
+body {
+	margin: 0;
+	padding: 0;
+}
+
+/* When opened as a tab, use dark zinc background */
+body:has([data-tab-view]) {
+	background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+	min-height: 100vh;
+}
+

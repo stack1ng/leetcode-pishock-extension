@@ -9,8 +9,11 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [chrome-mv3, firefox-mv3]
 
     steps:
       - name: Checkout repository
@@ -25,16 +28,124 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build extension
-        run: bun run build
+        run: bun run build --target=${{ matrix.target }}
 
-      - name: Create XPI package
+      - name: Add Firefox-specific manifest settings
+        if: matrix.target == 'firefox-mv3'
         run: |
-          cd dist
-          zip -r ../leetcode-pishock.xpi .
+          cd build/firefox-mv3-prod
+          # Add webRequest and webRequestBlocking permissions for Firefox
+          jq '.permissions += ["webRequest", "webRequestBlocking"]' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          # Add browser_specific_settings for Firefox
+          jq '.browser_specific_settings = {"gecko": {"id": "leetcode-pishock@example.com"}}' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          cat manifest.json
 
-      - name: Upload Release Asset
+      - name: Package extension
+        run: bun run package --target=${{ matrix.target }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-build
+          path: build/${{ matrix.target }}-prod.zip
+          retention-days: 1
+
+  sign-chrome:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Chrome build
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-mv3-build
+
+      - name: Unzip Chrome extension
+        run: |
+          mkdir -p extension
+          unzip chrome-mv3-prod.zip -d extension
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Create private key file
+        run: echo "${{ secrets.CHROME_EXTENSION_KEY }}" > key.pem
+
+      - name: Sign Chrome extension as CRX
+        run: |
+          npm install -g crx
+          crx pack extension -o leetcode-pishock-chrome.crx -p key.pem
+
+      - name: Clean up key
+        run: rm -f key.pem
+
+      - name: Upload signed Chrome extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-signed
+          path: leetcode-pishock-chrome.crx
+          retention-days: 1
+
+  sign-firefox:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Firefox build
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-mv3-build
+
+      - name: Unzip Firefox extension
+        run: |
+          mkdir -p extension
+          unzip firefox-mv3-prod.zip -d extension
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sign Firefox extension
+        run: |
+          npm install -g web-ext
+          web-ext sign \
+            --source-dir=extension \
+            --artifacts-dir=. \
+            --api-key=${{ vars.AMO_JWT_ISSUER }} \
+            --api-secret=${{ secrets.AMO_JWT_SECRET }} \
+            --channel=unlisted
+          # Rename to consistent filename
+          mv *.xpi leetcode-pishock-firefox.xpi
+
+      - name: Upload signed Firefox extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-signed
+          path: leetcode-pishock-firefox.xpi
+          retention-days: 1
+
+  release:
+    needs: [sign-chrome, sign-firefox]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all signed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-signed"
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la
+
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: leetcode-pishock.xpi
+          files: |
+            leetcode-pishock-chrome.crx
+            leetcode-pishock-firefox.xpi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

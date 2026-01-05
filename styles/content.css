@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom pulse animation for warning state */
+@keyframes pulse-opacity {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0.6;
+	}
+}
+
+.animate-pulse-opacity {
+	animation: pulse-opacity 0.5s ease-in-out infinite alternate;
+}
+
+/* Plasmo overlay container positioning */
+plasmo-csui {
+	z-index: 9999 !important;
+}
