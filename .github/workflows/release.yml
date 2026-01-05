@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -38,4 +38,3 @@ jobs:
           files: leetcode-pishock.xpi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
