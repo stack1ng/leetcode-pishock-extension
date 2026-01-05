@@ -1,0 +1,36 @@
+{
+  "manifest_version": 2,
+  "name": "cursor-gpt-5.1",
+  "version": "1.0.0",
+  "description": "Shocks or vibrates a PiShock device based on your LeetCode submission results.",
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "storage",
+    "https://leetcode.com/*",
+    "https://do.pishock.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "LeetCode PiShock settings",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/*"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
+
+
