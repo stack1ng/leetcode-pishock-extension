@@ -213,6 +213,8 @@ function ShockerOverlay() {
 		initialShockDuration,
 		incrementalIntensityStep,
 		incrementalDurationStep,
+		maxIntensity,
+		maxDuration,
 
 		vibrateIntensity,
 		vibrateDuration,
@@ -256,11 +258,19 @@ function ShockerOverlay() {
 	}, [isSuccessful, stopCountdown]);
 
 	const [intensity, _setIntensity] = useState(initialShockIntensity);
-	const setIntensity = useCallback((value: number) => {
-		_setIntensity(Math.min(Math.max(value, 0), 100));
-	}, []);
-	const [duration, setDuration] = useState(initialShockDuration);
-
+	const setIntensity = useCallback(
+		(value: number) => {
+			_setIntensity(Math.min(Math.max(value, 0), maxIntensity));
+		},
+		[maxIntensity]
+	);
+	const [duration, _setDuration] = useState(initialShockDuration);
+	const setDuration = useCallback(
+		(value: number) => {
+			_setDuration(Math.min(Math.max(value, 0), maxDuration));
+		},
+		[maxDuration]
+	);
 	const incrementalShock = useCallback(() => {
 		toast.success(`⚡ Shocking you @ ${intensity}% ⚡`);
 		setIntensity(intensity + incrementalIntensityStep);
@@ -284,7 +294,7 @@ function ShockerOverlay() {
 
 	useEffect(() => {
 		const unsubscribe = onSubmission((event) => {
-			console.log("Submission event:", event);
+			console.log("Submission event:", event, shockOnTestFail);
 			switch (event.kind) {
 				case "final":
 					setIsSuccessful(event.success);
