@@ -34,10 +34,10 @@ jobs:
         if: matrix.target == 'firefox-mv3'
         run: |
           cd build/firefox-mv3-prod
-          # Add webRequest permission for Firefox (webRequestBlocking is NOT allowed in MV3)
-          jq '.permissions += ["webRequest"]' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
-          # Add browser_specific_settings for Firefox with a valid extension ID
-          jq '.browser_specific_settings = {"gecko": {"id": "leetcode-pishock@github.com/stack1ng", "strict_min_version": "109.0"}}' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          # Add webRequest permission for Firefox (only if not already present)
+          jq 'if (.permissions | index("webRequest")) then . else .permissions += ["webRequest"] end' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          # Add browser_specific_settings for Firefox with a valid extension ID (email-like format, no slashes)
+          jq '.browser_specific_settings = {"gecko": {"id": "leetcode-pishock@stack1ng.github.io", "strict_min_version": "109.0"}}' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
           cat manifest.json
 
       - name: Package extension
@@ -122,9 +122,9 @@ jobs:
             --api-key=${{ vars.AMO_JWT_ISSUER }} \
             --api-secret=${{ secrets.AMO_JWT_SECRET }} \
             --channel=unlisted \
-            --approval-timeout=0 \
+            --approval-timeout=900000 \
             --upload-source-code=source.zip
-          # Rename to consistent filename
+          # Rename to consistent filename (find the xpi file that was created)
           mv *.xpi leetcode-pishock-firefox.xpi
 
       - name: Upload signed Firefox extension
