@@ -196,57 +196,33 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fetch Interception for Chrome MV3
+// Submission Result Fetching (Chrome MV3)
+// Background script detects submission requests via webRequest API,
+// then signals us to fetch the result directly
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Inject a script to intercept fetch calls for submission results
-function injectFetchInterceptor() {
-	const script = document.createElement("script");
-	script.textContent = `
-		(function() {
-			const originalFetch = window.fetch;
-			window.fetch = async function(...args) {
-				const response = await originalFetch.apply(this, args);
-				const url = args[0]?.toString() || '';
-				
-				// Check if this is a submission check URL
-				if (url.includes('/submissions/detail/') && url.includes('/check/')) {
-					try {
-						const clone = response.clone();
-						const data = await clone.json();
-						window.postMessage({
-							type: '__LEETCODE_PISHOCK_SUBMISSION__',
-							data: data
-						}, '*');
-					} catch (e) {
-						// Ignore parsing errors
-					}
-				}
-				
-				return response;
-			};
-		})();
-	`;
-	document.documentElement.appendChild(script);
-	script.remove();
-}
-
-// Listen for intercepted fetch results
-window.addEventListener("message", (event) => {
-	if (event.source !== window) return;
-	if (event.data?.type === "__LEETCODE_PISHOCK_SUBMISSION__") {
-		chrome.runtime.sendMessage({
-			type: "submissionResult",
-			data: event.data.data,
-		});
+chrome.runtime.onMessage.addListener((message: unknown) => {
+	const msg = message as { type: string; url?: string };
+	if (msg.type === "fetchSubmission" && msg.url) {
+		fetchSubmissionResult(msg.url);
 	}
 });
 
-// Inject the interceptor
-if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", injectFetchInterceptor);
-} else {
-	injectFetchInterceptor();
+async function fetchSubmissionResult(url: string): Promise<void> {
+	try {
+		const response = await fetch(url, {
+			credentials: "include",
+		});
+		if (!response.ok) return;
+
+		const data = await response.json();
+		chrome.runtime.sendMessage({
+			type: "submissionData",
+			data,
+		});
+	} catch {
+		// Ignore fetch errors
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,6 +236,9 @@ function ShockerOverlay() {
 		initialShockDuration,
 		incrementalIntensityStep,
 		incrementalDurationStep,
+
+		shockOnFinalFail,
+		shockOnTestFail,
 	} = useSettings();
 
 	const [isSuccessful, setIsSuccessful] = useState(false);
@@ -286,7 +265,7 @@ function ShockerOverlay() {
 	}, [hasFocusedCodeEditor]);
 
 	useEffect(() => {
-		if (hasFocusedCodeEditor) startCountdown();
+		if (hasFocusedCodeEditor && shockIntervalSeconds) startCountdown();
 	}, [hasFocusedCodeEditor, startCountdown]);
 
 	useEffect(() => {
@@ -313,7 +292,7 @@ function ShockerOverlay() {
 	]);
 
 	useEffect(() => {
-		if (count === 0) {
+		if (count === 0 && shockIntervalSeconds) {
 			incrementalShock();
 			resetCountdown();
 			startCountdown();
@@ -326,9 +305,12 @@ function ShockerOverlay() {
 			switch (event.kind) {
 				case "final":
 					setIsSuccessful(event.success);
-					if (!event.success) {
-						incrementalShock();
-					}
+					if (shockOnFinalFail && !event.success) incrementalShock();
+
+					break;
+				case "test":
+					if (shockOnTestFail && !event.success) incrementalShock();
+
 					break;
 			}
 		});
@@ -342,13 +324,18 @@ function ShockerOverlay() {
 	const [codeEditorRect, setCodeEditorRect] = useState<DOMRect>(null);
 	const codeEditor = document.querySelector<HTMLElement>(CODE_EDITOR_SELECTOR);
 	useEffect(() => {
-		const computeWidth = () =>
+		const computeWidth = () => {
 			setCodeEditorRect(codeEditor?.getBoundingClientRect());
+		};
 		computeWidth();
 		const ob = new MutationObserver(computeWidth);
-		ob.observe(codeEditor, { childList: true, subtree: true });
+		ob.observe(document.body, { childList: true, subtree: true });
+		window.addEventListener("resize", computeWidth);
 		computeWidth();
-		return () => ob.disconnect();
+		return () => {
+			ob.disconnect();
+			window.removeEventListener("resize", computeWidth);
+		};
 	}, [codeEditor]);
 
 	return (
@@ -360,6 +347,7 @@ function ShockerOverlay() {
 			>
 				<div
 					className={cn("text-2xl font-bold", {
+						hidden: !shockIntervalSeconds,
 						"text-blue-500": !isSuccessful && !hasFocusedCodeEditor,
 						"text-yellow-500":
 							hasFocusedCodeEditor && !isSuccessful && count > 15,

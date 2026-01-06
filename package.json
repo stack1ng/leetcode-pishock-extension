@@ -45,7 +45,8 @@
 		],
 		"permissions": [
 			"storage",
-			"tabs"
+			"tabs",
+			"webRequest"
 		],
 		"browser_specific_settings": {
 			"gecko": {
