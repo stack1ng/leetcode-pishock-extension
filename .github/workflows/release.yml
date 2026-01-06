@@ -34,10 +34,10 @@ jobs:
         if: matrix.target == 'firefox-mv3'
         run: |
           cd build/firefox-mv3-prod
-          # Add webRequest and webRequestBlocking permissions for Firefox
-          jq '.permissions += ["webRequest", "webRequestBlocking"]' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
-          # Add browser_specific_settings for Firefox
-          jq '.browser_specific_settings = {"gecko": {"id": "leetcode-pishock@example.com"}}' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          # Add webRequest permission for Firefox (webRequestBlocking is NOT allowed in MV3)
+          jq '.permissions += ["webRequest"]' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          # Add browser_specific_settings for Firefox with a valid extension ID
+          jq '.browser_specific_settings = {"gecko": {"id": "leetcode-pishock@github.com/stack1ng", "strict_min_version": "109.0"}}' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
           cat manifest.json
 
       - name: Package extension
@@ -108,15 +108,22 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Checkout repository for source code
+        uses: actions/checkout@v4
+
       - name: Sign Firefox extension
         run: |
           npm install -g web-ext
+          # Create source archive for AMO validation (helps with minified file warnings)
+          zip -r source.zip . -x "node_modules/*" -x "build/*" -x ".git/*" -x "*.zip"
           web-ext sign \
             --source-dir=extension \
             --artifacts-dir=. \
             --api-key=${{ vars.AMO_JWT_ISSUER }} \
             --api-secret=${{ secrets.AMO_JWT_SECRET }} \
-            --channel=unlisted
+            --channel=unlisted \
+            --approval-timeout=0 \
+            --upload-source-code=source.zip
           # Rename to consistent filename
           mv *.xpi leetcode-pishock-firefox.xpi
 
