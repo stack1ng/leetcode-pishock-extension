@@ -19,6 +19,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          # Extract version from tag (e.g., v1.0.1 -> 1.0.1)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          # Update version in package.json to match the git tag
+          jq '.version = "${{ steps.version.outputs.version }}"' package.json > package.tmp && mv package.tmp package.json
+          cat package.json | grep version
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
