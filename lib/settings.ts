@@ -50,7 +50,7 @@ export type ShockCommand = {
 // Messages FROM content/popup TO background
 export type BackgroundMessage =
 	| { type: "shock"; payload: ShockCommand }
-	| { type: "testVibrate" };
+	| { type: "vibrate"; payload: ShockCommand };
 
 // Messages FROM background TO content
 export type ContentMessage = { type: "submission"; payload: SubmissionEvent };

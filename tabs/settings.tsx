@@ -107,7 +107,14 @@ function SettingsPage() {
 
 	const handleTestVibrate = async () => {
 		try {
-			await chrome.runtime.sendMessage({ type: "testVibrate" });
+			await chrome.runtime.sendMessage({
+				type: "vibrate",
+				payload: {
+					action: "vibrate",
+					intensity: settings.vibrateIntensity,
+					duration: settings.vibrateDuration,
+				},
+			});
 			setStatus({ message: "Test vibrate sent!", type: "success" });
 			setTimeout(() => setStatus({ message: "", type: "" }), 2000);
 		} catch (err) {

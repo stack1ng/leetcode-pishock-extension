@@ -218,14 +218,8 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
 			sendPiShock((msg as BackgroundMessage & { type: "shock" }).payload);
 			break;
 
-		case "testVibrate":
-			loadSettings().then(() => {
-				sendPiShock({
-					action: "vibrate",
-					intensity: settings.vibrateIntensity,
-					duration: settings.vibrateDuration,
-				});
-			});
+		case "vibrate":
+			sendPiShock((msg as BackgroundMessage & { type: "vibrate" }).payload);
 			break;
 	}
 });

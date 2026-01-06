@@ -187,6 +187,13 @@ function shock(intensity: number, duration: number): void {
 	});
 }
 
+function vibrate(intensity: number, duration: number): void {
+	chrome.runtime.sendMessage({
+		type: "vibrate",
+		payload: { action: "vibrate", intensity, duration },
+	});
+}
+
 // Listen for messages from background
 chrome.runtime.onMessage.addListener((message: unknown) => {
 	const msg = message as ContentMessage;
@@ -237,6 +244,9 @@ function ShockerOverlay() {
 		incrementalIntensityStep,
 		incrementalDurationStep,
 
+		vibrateIntensity,
+		vibrateDuration,
+
 		shockOnFinalFail,
 		shockOnTestFail,
 	} = useSettings();
@@ -269,7 +279,10 @@ function ShockerOverlay() {
 	}, [hasFocusedCodeEditor, startCountdown]);
 
 	useEffect(() => {
-		if (isSuccessful) stopCountdown();
+		if (isSuccessful) {
+			stopCountdown();
+			vibrate(vibrateIntensity, vibrateDuration);
+		}
 	}, [isSuccessful, stopCountdown]);
 
 	const [intensity, _setIntensity] = useState(initialShockIntensity);
