@@ -93,6 +93,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository for source code
+        uses: actions/checkout@v4
+
       - name: Download Firefox build
         uses: actions/download-artifact@v4
         with:
@@ -107,9 +110,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Checkout repository for source code
-        uses: actions/checkout@v4
 
       - name: Sign Firefox extension
         run: |
