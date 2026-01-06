@@ -203,36 +203,6 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Submission Result Fetching (Chrome MV3)
-// Background script detects submission requests via webRequest API,
-// then signals us to fetch the result directly
-// ─────────────────────────────────────────────────────────────────────────────
-
-chrome.runtime.onMessage.addListener((message: unknown) => {
-	const msg = message as { type: string; url?: string };
-	if (msg.type === "fetchSubmission" && msg.url) {
-		fetchSubmissionResult(msg.url);
-	}
-});
-
-async function fetchSubmissionResult(url: string): Promise<void> {
-	try {
-		const response = await fetch(url, {
-			credentials: "include",
-		});
-		if (!response.ok) return;
-
-		const data = await response.json();
-		chrome.runtime.sendMessage({
-			type: "submissionData",
-			data,
-		});
-	} catch {
-		// Ignore fetch errors
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Overlay Component
 // ─────────────────────────────────────────────────────────────────────────────
 

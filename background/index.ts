@@ -234,6 +234,7 @@ interface LeetCodeResponse {
 	submission_id?: string;
 	submissionId?: string;
 	task_finish_time?: string;
+	status_msg?: string;
 	run_success?: boolean;
 }
 
@@ -257,7 +258,7 @@ function handleSubmissionResult(data: LeetCodeResponse, tabId: number): void {
 
 	const event: SubmissionEvent = {
 		kind: isFinal ? "final" : "test",
-		success: Boolean(data.run_success),
+		success: data.status_msg === "Accepted",
 	};
 
 	notifyTab(tabId, { type: "submission", payload: event });
@@ -268,9 +269,6 @@ function handleSubmissionResult(data: LeetCodeResponse, tabId: number): void {
 // Web Request Interception (MV3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Firefox global (not available in Chrome)
-declare const browser: unknown;
-
 // Firefox-specific types for filterResponseData
 interface FilterResponseData {
 	ondata: ((event: { data: ArrayBuffer }) => void) | null;
@@ -279,47 +277,29 @@ interface FilterResponseData {
 	close: () => void;
 }
 
-interface FirefoxWebRequest {
-	filterResponseData: (requestId: string) => FilterResponseData;
-	onBeforeRequest: {
-		addListener: (
-			callback: (details: { requestId: string; tabId: number }) => object,
-			filter: { urls: string[] },
-			extraInfoSpec: string[]
-		) => void;
-	};
-}
+// Type for webRequest with Firefox's filterResponseData
+type WebRequestWithFilter = typeof chrome.webRequest & {
+	filterResponseData?: (requestId: string) => FilterResponseData;
+};
 
-// Check if we're in Firefox (has filterResponseData)
-function isFirefox(): boolean {
-	try {
-		return (
-			typeof browser !== "undefined" &&
-			typeof (browser as unknown as { webRequest?: FirefoxWebRequest })
-				.webRequest?.filterResponseData === "function"
-		);
-	} catch {
-		return false;
-	}
+const webRequest = chrome.webRequest as WebRequestWithFilter;
+
+// Check if filterResponseData is available (Firefox only)
+function hasFilterResponseData(): boolean {
+	return typeof webRequest.filterResponseData === "function";
 }
 
 const SUBMISSION_URL_PATTERN =
 	"https://leetcode.com/submissions/detail/*/check/";
 
-if (isFirefox()) {
-	// Firefox: Use filterResponseData to read response body directly
-	const browserApi = browser as unknown as {
-		webRequest: FirefoxWebRequest;
-	};
-
-	browserApi.webRequest.onBeforeRequest.addListener(
+if (hasFilterResponseData()) {
+	// Firefox: Use filterResponseData to read response body inline
+	chrome.webRequest.onBeforeRequest.addListener(
 		(details) => {
 			const tabId = details.tabId;
 
 			try {
-				const filter = browserApi.webRequest.filterResponseData(
-					details.requestId
-				);
+				const filter = webRequest.filterResponseData!(details.requestId);
 				const decoder = new TextDecoder("utf-8");
 				let body = "";
 
@@ -354,32 +334,33 @@ if (isFirefox()) {
 		["blocking"]
 	);
 } else {
-	// Chrome MV3: Use webRequest.onCompleted to detect submission requests,
-	// then signal content script to fetch the result
+	// Chrome MV3: Detect completed requests, then re-fetch from background script.
+	// Background script fetches have tabId: -1, so they won't trigger this listener again.
 	chrome.webRequest.onCompleted.addListener(
-		(details) => {
+		async (details) => {
+			// Skip requests not from a tab (e.g., our own background fetches)
 			if (details.tabId < 0) return;
 
-			// Notify content script to fetch submission result
-			chrome.tabs
-				.sendMessage(details.tabId, {
-					type: "fetchSubmission",
-					url: details.url,
-				})
-				.catch(() => {
-					// Content script not ready, ignore
+			try {
+				// Re-fetch from background script - this won't cause infinite loop
+				// because background fetches have tabId: -1 and are filtered above
+				const response = await fetch(details.url, {
+					credentials: "include",
 				});
+
+				if (!response.ok) {
+					console.error("PiShock: fetch failed", response.status);
+					return;
+				}
+
+				const json = (await response.json()) as LeetCodeResponse;
+				handleSubmissionResult(json, details.tabId);
+			} catch (err) {
+				console.error("PiShock: fetch error", err);
+			}
 		},
 		{ urls: [SUBMISSION_URL_PATTERN] }
 	);
 }
-
-// Handle submission data fetched by content script
-chrome.runtime.onMessage.addListener((message: unknown, sender) => {
-	const msg = message as { type: string; data?: unknown };
-	if (msg.type === "submissionData" && sender.tab?.id && msg.data) {
-		handleSubmissionResult(msg.data as LeetCodeResponse, sender.tab.id);
-	}
-});
 
 export {};
