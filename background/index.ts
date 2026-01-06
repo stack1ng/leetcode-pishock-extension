@@ -236,6 +236,7 @@ interface LeetCodeResponse {
 	task_finish_time?: string;
 	status_msg?: string;
 	run_success?: boolean;
+	correct_answer?: boolean;
 }
 
 function handleSubmissionResult(data: LeetCodeResponse, tabId: number): void {
@@ -243,8 +244,19 @@ function handleSubmissionResult(data: LeetCodeResponse, tabId: number): void {
 	if (data.state && data.state !== "SUCCESS") return;
 
 	const taskName = data.task_name;
-	const isTest = taskName === "judger.runcodetask.RunCode";
-	const isFinal = taskName === "judger.judgetask.Judge";
+	let isTest = false;
+	let isFinal = false;
+	let success = false;
+	switch (taskName) {
+		case "judger.runcodetask.RunCode":
+			isTest = true;
+			success = data.correct_answer === true;
+			break;
+		case "judger.judgetask.Judge":
+			isFinal = true;
+			success = data.status_msg === "Accepted";
+			break;
+	}
 
 	if (!isTest && !isFinal) return;
 
@@ -258,7 +270,7 @@ function handleSubmissionResult(data: LeetCodeResponse, tabId: number): void {
 
 	const event: SubmissionEvent = {
 		kind: isFinal ? "final" : "test",
-		success: data.status_msg === "Accepted",
+		success,
 	};
 
 	notifyTab(tabId, { type: "submission", payload: event });
