@@ -58,7 +58,6 @@ export default function IntervalSettings({ settings, updateSetting }: Props) {
 					<input
 						type="number"
 						min="10"
-						max="600"
 						value={settings.shockIntervalSeconds ?? 120}
 						onChange={(e) =>
 							updateSetting("shockIntervalSeconds", Number(e.target.value))
