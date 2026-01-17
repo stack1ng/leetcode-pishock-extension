@@ -81,7 +81,7 @@ function SettingsPage() {
 			vibrateDuration: clamp(settings.vibrateDuration, 0.1, 15),
 			shockIntervalSeconds:
 				settings.shockIntervalSeconds !== undefined
-					? clamp(settings.shockIntervalSeconds, 10, 600)
+					? clamp(settings.shockIntervalSeconds, 10, Infinity)
 					: undefined,
 			incrementalIntensityStep: clamp(settings.incrementalIntensityStep, 0, 25),
 			incrementalDurationStep: clamp(settings.incrementalDurationStep, 0, 2),
